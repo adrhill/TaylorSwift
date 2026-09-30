@@ -3,6 +3,10 @@
 Taylor-mode automatic differentiation for Swift: higher-order derivatives in a single
 forward pass.
 
+
+> [!WARNING]  
+> Don't use this. This package was vibe-coded as a joke on a train ride back from [EuroAD29](https://cambridge-iccs.github.io/euroad29/).
+
 A `Taylor` value is a truncated Taylor series
 `c₀ + c₁ t + … + c_N t^N` with normalized coefficients `c_k = x⁽ᵏ⁾(0) / k!`.
 Arithmetic and elementary functions propagate all coefficients at once, so evaluating `f`
@@ -99,25 +103,7 @@ polarization identities.
 
 ## Installation
 
-```swift
-dependencies: [
-    .package(url: "<repository URL>", branch: "main")
-]
-```
-
-## Testing
-
-```sh
-swift test
-```
-
-With the Xcode Command Line Tools but without Xcode, the Swift Testing framework is not
-on the default search path:
-
-```sh
-set F /Library/Developer/CommandLineTools/Library/Developer/Frameworks  # fish
-swift test -Xswiftc -F$F -Xlinker -F$F -Xlinker -rpath -Xlinker $F
-```
+Please don't.
 
 ## References
 
