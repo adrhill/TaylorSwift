@@ -96,8 +96,17 @@ polarization identities.
   combine with series of any order. Scalars and literals are lifted to such constants.
 - **Literals.** Swift reads `Taylor(3.0)` as a literal of type `Taylor`, whose scalar type
   it cannot infer. Write `Taylor<Double>(3.0)` instead.
-- **Singularities.** At points where a function is not differentiable, such as `sqrt` at
-  zero, the higher coefficients are infinite or NaN. `abs` at zero acts as the identity.
+- **Equality.** Series are compared as if the shorter one were padded with zeros, so a
+  constant equals a constant path of any order.
+- **Kinks and roots at zero.** Where `abs`, `sqrt`, `cbrt`, `root`, `pow` with a fractional
+  exponent, or `hypot` is not smooth, it yields the expansion for `t → 0⁺`. This is exact
+  whenever the composite is smooth, as in `abs(-t * t) = t * t` or `sqrt(t⁴) = t²`, and
+  one-sided otherwise, as in `abs(t) = t`. Derivatives that diverge as `t → 0⁺` are
+  infinite, such as those of `sqrt(t)`. Coefficients that depend on terms beyond the
+  truncation order are NaN, such as the last one of `sqrt(t * t)`.
+- **Other singularities.** At other points where a function is not differentiable, such as
+  `log` at zero, the higher coefficients are infinite or NaN.
+- **Scaling.** `hypot` avoids overflow and underflow in all coefficients, not only the value.
 - **Powers.** `pow` with an integer exponent works for any base. As for scalars, `pow`
   with a real exponent is NaN for negative bases.
 

@@ -127,6 +127,53 @@ extension Taylor {
         return Taylor(unchecked: v)
     }
 
+    /// The power `v = u^r` with a positive exponent `r = numerator / denominator` at a zero
+    /// primal value, for a series `u` that is not a constant path.
+    ///
+    /// With `u = t^m w`, where `w₀` is the first nonzero coefficient, the power is
+    /// `v = t^p w^r` with `p = m r` for `t → 0⁺`. Like ``abs(_:)`` at zero, this is the
+    /// exact expansion if `v` is smooth at zero, and the one-sided expansion otherwise:
+    ///
+    /// - The coefficients below the order `p` vanish.
+    /// - If `p` is whole, the coefficients from `p` on are those of `w^r`. Those beyond
+    ///   the order `N - m + p` depend on coefficients of `u` beyond the truncation order,
+    ///   and are NaN.
+    /// - Otherwise the derivatives of the orders `k > p` diverge as `t → 0⁺`. Their
+    ///   coefficients are infinite, with the sign of `p (p - 1) ⋯ (p - k + 1) w₀^r`.
+    ///
+    /// If `w₀^r` is NaN, as for a negative `w₀` and a fractional `r`, then so are all
+    /// coefficients but the value.
+    @inlinable
+    internal static func powerAtZero(
+        _ u: Taylor, numerator: Scalar, denominator: Scalar, value: Scalar,
+        power: (Taylor) -> Taylor
+    ) -> Taylor {
+        let n = u.storage.count
+        let m = u.storage.firstIndex { $0 != .zero }!
+        let p = Scalar(m) * numerator / denominator
+        let w = power(Taylor(unchecked: Array(u.storage[m...])))
+        // The order `p` as an integer, if it is whole and within the truncation order.
+        let wholeOrder = (0..<n).first { Scalar($0) == p }
+        var v = [Scalar](repeating: .zero, count: n)
+        v[0] = value
+        for k in 1..<n {
+            if w.value.isNaN {
+                v[k] = .nan
+            } else if Scalar(k) < p {
+                continue
+            } else if let wholeOrder {
+                let j = k - wholeOrder
+                v[k] = j < w.storage.count ? w.storage[j] : .nan
+            } else {
+                // The factors p - i are negative for i > p.
+                let negativeFactors = (0..<k).count { Scalar($0) > p }
+                let positive = (negativeFactors % 2 == 0) == (w.value.sign == .plus)
+                v[k] = positive ? .infinity : -.infinity
+            }
+        }
+        return Taylor(unchecked: v)
+    }
+
     /// The power `x^n` by repeated squaring, which is exact for polynomials and
     /// well-defined for a zero primal value.
     @inlinable
@@ -338,13 +385,17 @@ extension Taylor: ElementaryFunctions {
 
     /// The square root.
     ///
-    /// The square root is not differentiable at zero: if the primal value is zero, the
-    /// higher coefficients are infinite or NaN, unless `x` is a constant path.
+    /// At a zero primal value, the result is the expansion for `t → 0⁺`: with `x = t^m w`,
+    /// it is `t^(m/2) √w`. Its coefficients are finite up to the order that the truncated
+    /// `x` determines if `m` is even, and infinite from the order `m / 2` on if `m` is odd.
     @inlinable
     public static func sqrt(_ x: Taylor) -> Taylor {
         let value = Scalar.sqrt(x.value)
         if x.hasZeroHigherCoefficients {
             return x.constantPath(value)
+        }
+        if x.value == .zero {
+            return powerAtZero(x, numerator: 1, denominator: 2, value: value) { sqrt($0) }
         }
         // v² = u, so that 2 v₀ v_k = u_k - Σ_{j=1}^{k-1} v_j v_{k-j}
         let u = x.storage
@@ -362,9 +413,9 @@ extension Taylor: ElementaryFunctions {
 
     /// The real `n`-th root.
     ///
-    /// For odd `n`, the root of a negative value is the negative real root. Roots are not
-    /// differentiable at zero: if the primal value is zero, the higher coefficients are
-    /// infinite or NaN, unless `x` is a constant path.
+    /// For odd `n`, the root of a negative value is the negative real root. At a zero primal
+    /// value and for positive `n`, the result is the expansion for `t → 0⁺`, as for
+    /// ``sqrt(_:)``.
     @inlinable
     public static func root(_ x: Taylor, _ n: Int) -> Taylor {
         if n == 1 {
@@ -373,6 +424,11 @@ extension Taylor: ElementaryFunctions {
         let value = Scalar.root(x.value, n)
         if x.hasZeroHigherCoefficients {
             return x.constantPath(value)
+        }
+        if x.value == .zero && n > 0 {
+            return powerAtZero(x, numerator: 1, denominator: Scalar(n), value: value) {
+                root($0, n)
+            }
         }
         // The weight is r j - (k - j) for r = 1 / n, written to be exact in the numerator.
         let degree = Scalar(n)
@@ -403,9 +459,10 @@ extension Taylor: ElementaryFunctions {
     /// negative primal value, even if `y` is a whole number; use the overload with an
     /// integer exponent for those.
     ///
-    /// The derivatives of a power with a fractional exponent eventually become singular at
-    /// zero: if the primal value is zero, the higher coefficients are infinite or NaN,
-    /// unless `x` is a constant path or `y` is a non-negative whole number.
+    /// At a zero primal value, a non-negative whole `y` gives the exact power. A positive
+    /// fractional `y` gives the expansion for `t → 0⁺`: with `x = t^m w`, it is
+    /// `t^(m y) w^y`, whose coefficients vanish below the order `m y` and are infinite
+    /// beyond it, unless `m y` is whole. A negative `y` gives infinite or NaN coefficients.
     @inlinable @_disfavoredOverload
     public static func pow(_ x: Taylor, _ y: Scalar) -> Taylor {
         let value = Scalar.pow(x.value, y)
@@ -429,6 +486,9 @@ extension Taylor: ElementaryFunctions {
             }
             result.storage[0] = value
             return result
+        }
+        if x.value == .zero && y > 0 {
+            return powerAtZero(x, numerator: y, denominator: 1, value: value) { pow($0, y) }
         }
         return power(of: x.storage, value: value) { j, rest in y * j - rest }
     }

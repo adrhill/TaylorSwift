@@ -50,6 +50,19 @@ import TaylorSwift
         #expect(Taylor.variable(0.0, order: 3).reciprocal == nil)
     }
 
+    @Test func reciprocalFollowsTheScalar() throws {
+        // As for `Double`, the reciprocal is nil where it would be subnormal, and hence
+        // not accurate.
+        for value in [Double.greatestFiniteMagnitude, -1e308, 1e-320] {
+            #expect(value.reciprocal == nil)
+            #expect(Taylor.variable(value, order: 2).reciprocal == nil)
+        }
+        let tiny = Double.leastNormalMagnitude
+        let x = Taylor.variable(tiny, order: 1)
+        #expect(try #require(x.reciprocal).value == 1 / tiny)
+        #expect(Taylor<Double>(-0.0).reciprocal == nil)
+    }
+
     @Test func arithmeticWithScalars() {
         let s = 2.0
         #expect((u + s).coefficients == [3, 2, 3])

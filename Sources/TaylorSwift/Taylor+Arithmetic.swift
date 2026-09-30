@@ -151,10 +151,11 @@ extension Taylor: AlgebraicField {
         lhs = lhs / rhs
     }
 
-    /// The multiplicative inverse, or `nil` if the primal ``value`` is zero.
+    /// The multiplicative inverse, or `nil` if the primal ``value`` is zero or its
+    /// reciprocal is not accurately representable (see `Scalar.reciprocal`).
     @inlinable
     public var reciprocal: Taylor? {
-        value == .zero ? nil : 1 / self
+        value == .zero || value.reciprocal == nil ? nil : 1 / self
     }
 }
 

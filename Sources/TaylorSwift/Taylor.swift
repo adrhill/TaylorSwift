@@ -209,22 +209,18 @@ extension Taylor {
 // MARK: - Equatable
 
 extension Taylor: Equatable {
-    /// Whether two series have the same coefficients.
+    /// Whether two series have the same coefficients, where the shorter one is padded
+    /// with zeros.
     ///
-    /// A constant equals a series of higher order whose higher coefficients are all zero.
-    /// Series of different orders are otherwise unequal.
+    /// A constant thus equals a constant path of any order, and more generally a series
+    /// equals its extension by zero coefficients. Padding makes the relation transitive.
     @inlinable
     public static func == (lhs: Taylor, rhs: Taylor) -> Bool {
-        if lhs.storage.count == rhs.storage.count {
-            return lhs.storage == rhs.storage
-        }
-        if lhs.isConstant {
-            return lhs.value == rhs.value && rhs.hasZeroHigherCoefficients
-        }
-        if rhs.isConstant {
-            return lhs.value == rhs.value && lhs.hasZeroHigherCoefficients
-        }
-        return false
+        let (shorter, longer) =
+            lhs.storage.count <= rhs.storage.count
+            ? (lhs.storage, rhs.storage) : (rhs.storage, lhs.storage)
+        return shorter.elementsEqual(longer.prefix(shorter.count))
+            && longer.dropFirst(shorter.count).allSatisfy { $0 == .zero }
     }
 }
 
